@@ -55,14 +55,11 @@ where P: AsRef<Path>, {
     Ok(io::BufReader::new(file).lines())
 }
 
+fn read_homo_pol_file(filename: String) -> Vec<HomopolymerRecord> {
 
-fn main() {
-    let args = Opts::parse();
-  
     let mut homos: Vec<HomopolymerRecord> = Vec::new();
     // File hosts must exist in current path before this produces output
-    if let Ok(lines) = read_lines(args.input_homos) {
-        // Consumes the iterator, returns an (Optional) String
+    if let Ok(lines) = read_lines(filename) {
         for line in lines {
             if let Ok(l) = line {
                 let mut bits = l.split("\t");
@@ -81,6 +78,14 @@ fn main() {
                 
             }
         }
-        println!("{:?}", homos);
     }
+    homos
+}
+
+
+fn main() {
+    let args = Opts::parse();
+    let homos = read_homo_pol_file(args.input_homos);
+    println!("{:?}", homos);
+    
 }
