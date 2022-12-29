@@ -4,7 +4,9 @@
 
 use clap::Parser;
 
-extern crate hope;
+mod homopolymer;
+mod io;
+
 
 /// hope (homopolymer performance). Identify portions of long reads that map to
 /// specified homopolymers in an assembly. Report errors in the sequencing of
@@ -29,8 +31,9 @@ struct Opts {
 
 fn main() {
     let args = Opts::parse();
-    let homos = hope::io::read_homo_pol_file(args.input_homos);
-    println!("{:?}", homos);
+    let homos = crate::io::read_homo_pol_file(args.input_homos);
+    
+    let fasta = crate::io::read_fasta(args.assembly);
     
 
 }
