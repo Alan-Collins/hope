@@ -7,8 +7,16 @@ use std::io::{self, BufRead};
 use std::path::Path;
 use std::collections::HashMap;
 
-use crate::homopolymer::HomopolymerRecord;
+use bam;
 
+use crate::homopolymer::HomopolymerRecord;
+use crate::read_alignment::ReadAlignment;
+
+#[derive(Debug)]
+pub struct FastaSequence {
+    seq_idxs: HashMap<u32, String>,
+    seq_map: HashMap<String, String>
+}
 
 
 pub fn read_homo_pol_file(filename: String) -> Vec<HomopolymerRecord> {
@@ -44,11 +52,13 @@ where P: AsRef<Path>, {
     Ok(io::BufReader::new(file).lines())
 }
 
-pub fn read_fasta(filename: String) -> HashMap<String, String> {
+pub fn read_fasta(filename: String) -> FastaSequence {
 
     let mut fasta_map: HashMap<String, String> = HashMap::new();
+    let mut seq_idxs: HashMap<u32, String> = HashMap::new();
     let mut header = String::new();
     let mut seq = String::new();
+    let mut seq_id: u32 = 0;
 
     if let Ok(lines) = read_lines(filename) {
         for line in lines {
@@ -59,6 +69,8 @@ pub fn read_fasta(filename: String) -> HashMap<String, String> {
                         seq.clear();
                     } else {
                         fasta_map.insert(header.to_string(), seq.to_string());
+                        seq_idxs.insert(seq_id, header.to_string());
+                        seq_id += 1;
                         header.clear();
                         header.push_str(&l[1..]);
                         seq.clear();
@@ -69,6 +81,30 @@ pub fn read_fasta(filename: String) -> HashMap<String, String> {
             }
         }
         fasta_map.insert(header.to_string(), seq.to_string());
+        seq_idxs.insert(seq_id, header.to_string());
     }
-    fasta_map
+    FastaSequence {
+        seq_map: fasta_map,
+        seq_idxs: seq_idxs
+    }
+}
+
+pub fn read_bam(filename: String, fasta_map: FastaSequence) -> String {// -> HashMap<String, ReadAlignment> {
+    // Read "in.bam" using 4 additional threads (5 total).
+    let reader = bam::BamReader::from_path(filename, 0).unwrap();
+    for record in reader {
+        let record = record.unwrap();
+        // if record.ref_id() != 0 {
+        //     println!("{:?}", record);
+        // }
+        if record.flag().is_secondary() | record.flag().is_supplementary() {
+            continue
+        }
+        let mut cig: Vec<(String, u32)> = Vec::new();
+        for (l, c) in record.cigar().iter() {
+            cig.push((c.to_string(), l));
+        }
+        std::process::exit(1);
+    }
+    "hello".to_string()
 }
