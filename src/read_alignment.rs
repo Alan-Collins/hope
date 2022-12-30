@@ -7,6 +7,7 @@ pub struct ReadAlignment {
     pub contig: String,
     pub contig_id: i32,
     pub pos: i32,
+    pub end: i32,
     pub name: String,
     pub seq: String,
     pub flag: u16,
@@ -22,8 +23,13 @@ impl ReadAlignment {
             if vec!["H","S"].iter().any(|&i| i==c) {
                 continue
             } else if c=="D" {
-            	read_idx += l;
-            	ref_idx += l;
+                if ref_idx + l >= pos {
+                    read_idx += pos - ref_idx;
+                    break
+                } else {
+                	read_idx += l;
+                	ref_idx += l;
+                }
             } else if c=="M" {
             	if ref_idx + l >= pos {
             		read_idx += pos - ref_idx;
@@ -94,19 +100,3 @@ impl ReadAlignment {
         }
     }
 }
-
-// def print_alignment(self, start=0, stop=None):
-
-//         for i in range(start, stop, 60):
-//             print(f"read\t{self.whole_read_alignment[i:min(i+60, stop)]}  {min(i+60, stop)}")
-//             print(f"ref \t{self.whole_ref_seq[i:min(i+60, stop)]}  {min(i+60, stop)}")
-//             mism = ""
-//             for a,b in zip(
-//                 self.whole_read_alignment[i:i+60],
-//                 self.whole_ref_seq[i:min(i+60, stop)]
-//                 ):
-//                 if a == b:
-//                     mism += "*"
-//                 else:
-//                     mism += " "
-//             print(f"\t{mism}\n")
