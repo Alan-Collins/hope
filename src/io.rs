@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 #![allow(unused_imports)]
+#![allow(unreachable_code)]
 
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -14,7 +15,7 @@ use crate::read_alignment::ReadAlignment;
 
 #[derive(Debug)]
 pub struct FastaSequence {
-    seq_idxs: HashMap<u32, String>,
+    seq_idxs: HashMap<i32, String>,
     seq_map: HashMap<String, String>
 }
 
@@ -55,10 +56,10 @@ where P: AsRef<Path>, {
 pub fn read_fasta(filename: String) -> FastaSequence {
 
     let mut fasta_map: HashMap<String, String> = HashMap::new();
-    let mut seq_idxs: HashMap<u32, String> = HashMap::new();
+    let mut seq_idxs: HashMap<i32, String> = HashMap::new();
     let mut header = String::new();
     let mut seq = String::new();
-    let mut seq_id: u32 = 0;
+    let mut seq_id: i32 = 0;
 
     if let Ok(lines) = read_lines(filename) {
         for line in lines {
@@ -89,22 +90,66 @@ pub fn read_fasta(filename: String) -> FastaSequence {
     }
 }
 
-pub fn read_bam(filename: String, fasta_map: FastaSequence) -> String {// -> HashMap<String, ReadAlignment> {
-    // Read "in.bam" using 4 additional threads (5 total).
+pub fn read_bam(filename: String, fasta_seq: FastaSequence) -> String {// -> HashMap<String, ReadAlignment> {
+    let mut read_align_map: HashMap<String, ReadAlignment> = HashMap::new();
     let reader = bam::BamReader::from_path(filename, 0).unwrap();
     for record in reader {
         let record = record.unwrap();
+
         // if record.ref_id() != 0 {
         //     println!("{:?}", record);
         // }
+        // skip if map is secondary or supplementary
         if record.flag().is_secondary() | record.flag().is_supplementary() {
             continue
         }
+
+        // extract read name
+        let name: &str = std::str::from_utf8(&record.name()).unwrap();
+        
+        // extract cigar string as vector of tuples
         let mut cig: Vec<(String, u32)> = Vec::new();
         for (l, c) in record.cigar().iter() {
             cig.push((c.to_string(), l));
         }
-        std::process::exit(1);
+
+        // extract basic details
+        let contig_id: i32 = record.ref_id();
+
+        // following line doesn't work directly for some reason. Need to split in two
+        // let seq: &str = std::str::from_utf8(&record.sequence().to_vec()).unwrap();
+
+        // This seems to be the same thing, but works. 
+        let temp = &record.sequence().to_vec();
+        let seq: &str = std::str::from_utf8(&temp).unwrap();
+
+        let Some(contig) = fasta_seq.seq_idxs.get(&contig_id) else { continue };
+        let Some(ref_seq) = fasta_seq.seq_map.get(&contig.to_string()) else { continue };
+        let start = record.start();
+        let flag = record.flag().0;
+
+        let mut ra = crate::read_alignment::ReadAlignment { 
+            cig: cig,
+            contig: contig.to_string(),
+            contig_id: contig_id,
+            seq: seq.to_string(),
+            pos: start,
+            name: name.to_string(),
+            flag: flag,
+            whole_read_alignment: "".to_string(),
+            whole_ref_alignment: "".to_string(),
+        };
+        ra.generate_alignment(ref_seq);
+        read_align_map.insert(name.to_string(), ra);
+        for some_alignment in read_align_map.values() {
+            let x = some_alignment.get_aligned_index(30);
+            let y = some_alignment.get_aligned_index(60);
+            println!("{:?}", (x,y));
+            println!("{:?}", &some_alignment.seq[x as usize..y as usize]);
+            println!("{:?}", &some_alignment.whole_ref_alignment[x as usize..y as usize]);
+            println!("{:?}", &some_alignment.whole_read_alignment[x as usize..y as usize]);
+            std::process::exit(1);
+        }
     }
     "hello".to_string()
 }
