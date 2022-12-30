@@ -1,3 +1,5 @@
+use std::cmp;
+
 
 #[derive(Debug)]
 pub struct ReadAlignment {
@@ -72,4 +74,39 @@ impl ReadAlignment {
 	    self.whole_ref_alignment.push_str(&aln_ref_seq);
 	    self.whole_read_alignment.push_str(&read_seq);
     }
+
+    pub fn print_alignment(&self, start: usize, stop: usize) {
+        for i in (start..stop).step_by(60) {
+            let end = cmp::min(stop, i+60);
+            let mut mism = String::new();
+            let read_slice = &self.whole_read_alignment[i..end];
+            let ref_slice = &self.whole_ref_alignment[i..end];
+            for (a,b) in read_slice.chars().zip(ref_slice.chars()) {
+                if a == b {
+                    mism.push_str("*");
+                } else {
+                    mism.push_str(" ");
+                }
+            }
+            println!("\tRead\t{read_slice}\t{end}");
+            println!("\tRef\t{ref_slice}\t{end}");
+            println!("\t\t{mism}");
+        }
+    }
 }
+
+// def print_alignment(self, start=0, stop=None):
+
+//         for i in range(start, stop, 60):
+//             print(f"read\t{self.whole_read_alignment[i:min(i+60, stop)]}  {min(i+60, stop)}")
+//             print(f"ref \t{self.whole_ref_seq[i:min(i+60, stop)]}  {min(i+60, stop)}")
+//             mism = ""
+//             for a,b in zip(
+//                 self.whole_read_alignment[i:i+60],
+//                 self.whole_ref_seq[i:min(i+60, stop)]
+//                 ):
+//                 if a == b:
+//                     mism += "*"
+//                 else:
+//                     mism += " "
+//             print(f"\t{mism}\n")
