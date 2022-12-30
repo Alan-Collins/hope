@@ -6,6 +6,7 @@ use clap::Parser;
 
 mod homopolymer;
 mod io;
+mod read_alignment;
 
 
 /// hope (homopolymer performance). Identify portions of long reads that map to
@@ -33,7 +34,9 @@ fn main() {
     let args = Opts::parse();
     let homos = crate::io::read_homo_pol_file(args.input_homos);
     
-    let fasta = crate::io::read_fasta(args.assembly);
+    let fasta_seq = crate::io::read_fasta(args.assembly);
+
+    let x = io::read_bam(args.bam, fasta_seq);
     
 
 }
