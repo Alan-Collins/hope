@@ -245,7 +245,5 @@ impl HomopolymerResult<'_> {
             self.score = HomopolymerScore::Difference(0);
             return
         }
-        println!("{:?}", base);
-        std::process::exit(1);
     }
 }
