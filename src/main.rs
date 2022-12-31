@@ -56,7 +56,6 @@ fn main() {
                 continue
             } 
             if homo.stop > ra.end as u32 {
-                println!("{:?}", (ra.end, homo.stop));
                 continue
             }
 

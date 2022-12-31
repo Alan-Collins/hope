@@ -95,9 +95,6 @@ pub fn read_bam(filename: String, fasta_seq: FastaSequence) -> HashMap<String, R
     let reader = bam::BamReader::from_path(filename, 0).unwrap();
     for record in reader {
         let record = record.unwrap();
-        // if record.ref_id() != 0 {
-        //     println!("{:?}", record);
-        // }
         // skip if map is secondary or supplementary
         if record.flag().is_secondary() | record.flag().is_supplementary() {
             continue
