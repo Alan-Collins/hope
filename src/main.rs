@@ -36,30 +36,26 @@ struct Opts {
 
 fn main() {
     let args = Opts::parse();
-    let homos = crate::io::read_homo_pol_file(args.input_homos);
+    let homos = io::read_homo_pol_file(args.input_homos);
     
-    let fasta_seq = crate::io::read_fasta(args.assembly);
+    let fasta_seq = io::read_fasta(args.assembly);
 
     let reads = io::read_bam(args.bam, fasta_seq);
 
     let mut results: Vec::<homopolymer::HomopolymerResult> = Vec::new();
-    // let mut x = 0;
     let mut outcontents = "homopolymer_length\thomopolymer_base\tdifference\tread_context\tassembly_context\thomo_start\tread_ID\n".to_string();
     for homo in homos {
-        // x += 1;
-        // if x > 20 {
-        //     break
-        // }
         for ra in reads.values() {
             // if read doesn't map to homopolymer, skip
+            if ra.contig != homo.contig{
+                continue
+            }
             if ra.pos as u32 > homo.start {
                 continue
             } 
             if homo.stop > ra.end as u32 {
                 continue
             }
-
-            // let hr = homopolymer::HomopolymerResult::new(&homo, &ra);
             
             let start = ra.get_aligned_index(homo.start) as usize;
             let stop = ra.get_aligned_index(homo.stop) as usize;
@@ -93,7 +89,7 @@ fn main() {
                 homopolymer::HomopolymerScore::Other(score) => score,
                 homopolymer::HomopolymerScore::Difference(score) => score.to_string(),
             };
-            let line = format!("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n", hr.homo_length, hr.base, score, format!("{}{}{}", &hr.read_upstream[std::cmp::max(hr.read_upstream.len() as isize -5, 0) as usize..], hr.read_alignment, &hr.read_downstream[..5]), format!("{}{}{}", &hr.ref_upstream[std::cmp::max(hr.ref_upstream.len() as isize -5, 0) as usize..], hr.ref_alignment, &hr.ref_downstream[..5]), hr.homo.start, hr.ra.name);
+            let line = format!("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n", hr.homo_length, hr.base, score, format!("{}{}{}", &hr.read_upstream[std::cmp::max(hr.read_upstream.len() as isize -5, 0) as usize..], hr.read_alignment, &hr.read_downstream[..std::cmp::min(hr.read_downstream.len() as usize,5)]), format!("{}{}{}", &hr.ref_upstream[std::cmp::max(hr.ref_upstream.len() as isize -5, 0) as usize..], hr.ref_alignment, &hr.ref_downstream[..std::cmp::min(hr.ref_downstream.len() as usize,5)]), hr.homo.start, hr.ra.name);
             
             outcontents = format!("{}{}", &outcontents, &line);
         }
