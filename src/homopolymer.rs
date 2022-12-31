@@ -27,7 +27,7 @@ pub enum HomopolymerScore {
 pub struct HomopolymerResult<'a> {
     pub base: String, 
     pub homo_length: u32, 
-    pub homo: &'a HomopolymerRecord, 
+    pub homo: HomopolymerRecord, 
     pub ra: &'a crate::read_alignment::ReadAlignment, 
     pub start: usize, 
     pub stop: usize, 
@@ -42,7 +42,7 @@ pub struct HomopolymerResult<'a> {
 }
 
 impl HomopolymerResult<'_> {
-    pub fn new<'a>(homo: &'a HomopolymerRecord, ra: &'a crate::read_alignment::ReadAlignment) -> HomopolymerResult<'a> {
+    pub fn new<'a>(homo: HomopolymerRecord, ra: &'a crate::read_alignment::ReadAlignment) -> HomopolymerResult<'a> {
         let start = ra.get_aligned_index(homo.start) as usize;
         let stop = ra.get_aligned_index(homo.stop) as usize;
         let upstart = std::cmp::max(start, 30) - 30;
@@ -50,7 +50,13 @@ impl HomopolymerResult<'_> {
         let mut hr = HomopolymerResult {
             base: homo.base.to_string(),
             homo_length: homo.length,
-            homo: &homo,
+            homo: HomopolymerRecord{
+                contig: homo.contig.clone(),
+                start: homo.start,
+                stop: homo.stop,
+                base: homo.base.clone(),
+                length: homo.length,
+            },
             ra: &ra,
             start: start,
             stop: stop,
@@ -187,7 +193,7 @@ impl HomopolymerResult<'_> {
                 }
             }
             // else, flanking deletion includes non-homopolymer base, return ?
-            self.score = HomopolymerScore::Other("x".to_string());
+            self.score = HomopolymerScore::Other("?".to_string());
             return
         }
         
@@ -204,7 +210,7 @@ impl HomopolymerResult<'_> {
                     }
                     i += 1;
                     s = self.ref_upstream.chars().nth(self.ref_upstream.len()-i).unwrap();
-                    if i == self.ref_upstream.len() {
+                    if i == self.ref_upstream.len()-1 {
                         self.score = HomopolymerScore::Other("?".to_string());
                         return
                     }
@@ -217,20 +223,20 @@ impl HomopolymerResult<'_> {
             }
             if self.ref_downstream.starts_with('-') {
                 let mut i = 0;
-                let mut s = self.ref_downstream.chars().nth(self.ref_downstream.len()+i).unwrap();
+                let mut s = self.ref_downstream.chars().nth(i).unwrap();
                 while s == '-' {
-                    if self.read_downstream.chars().nth(self.read_downstream.len()+i).unwrap() == base {
+                    if self.read_downstream.chars().nth(i).unwrap() == base {
                         self.score = HomopolymerScore::Other("?".to_string());
                         return
                     }
                     i += 1;
-                    s = self.ref_downstream.chars().nth(self.ref_downstream.len()+i).unwrap();
-                    if i == self.ref_downstream.len() {
+                    s = self.ref_downstream.chars().nth(i).unwrap();
+                    if i == self.ref_downstream.len()-1 {
                         self.score = HomopolymerScore::Other("?".to_string());
                         return
                     }
                 }
-                if self.read_downstream.chars().nth(self.read_downstream.len()+i).unwrap() == base {
+                if self.read_downstream.chars().nth(i).unwrap() == base {
                     // indel flanked by homopolymer base. Call it homopolymer-associated error
                     self.score = HomopolymerScore::Other("?".to_string());
                     return
