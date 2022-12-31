@@ -29,7 +29,7 @@ pub fn read_homo_pol_file(filename: String) -> Vec<HomopolymerRecord> {
             if let Ok(l) = line {
                 let mut bits = l.split("\t");
                 let contig: String = bits.next().unwrap().to_string();
-                let start: u32 = bits.next().unwrap().parse::<u32>().unwrap();
+                let start: u32 = bits.next().unwrap().parse::<u32>().unwrap()-1;
                 let stop: u32 = bits.next().unwrap().parse::<u32>().unwrap();
                 let base: String = bits.next().unwrap().to_string();
                 let length: u32 = bits.next().unwrap().parse::<u32>().unwrap();
@@ -90,12 +90,11 @@ pub fn read_fasta(filename: String) -> FastaSequence {
     }
 }
 
-pub fn read_bam(filename: String, fasta_seq: FastaSequence) -> String {// -> HashMap<String, ReadAlignment> {
+pub fn read_bam(filename: String, fasta_seq: FastaSequence) -> HashMap<String, ReadAlignment> {
     let mut read_align_map: HashMap<String, ReadAlignment> = HashMap::new();
     let reader = bam::BamReader::from_path(filename, 0).unwrap();
     for record in reader {
         let record = record.unwrap();
-
         // if record.ref_id() != 0 {
         //     println!("{:?}", record);
         // }
@@ -126,6 +125,7 @@ pub fn read_bam(filename: String, fasta_seq: FastaSequence) -> String {// -> Has
         let Some(contig) = fasta_seq.seq_idxs.get(&contig_id) else { continue };
         let Some(ref_seq) = fasta_seq.seq_map.get(&contig.to_string()) else { continue };
         let start = record.start();
+        let end = record.calculate_end();
         let flag = record.flag().0;
 
         let mut ra = crate::read_alignment::ReadAlignment { 
@@ -134,6 +134,7 @@ pub fn read_bam(filename: String, fasta_seq: FastaSequence) -> String {// -> Has
             contig_id: contig_id,
             seq: seq.to_string(),
             pos: start,
+            end: end,
             name: name.to_string(),
             flag: flag,
             whole_read_alignment: "".to_string(),
@@ -141,15 +142,6 @@ pub fn read_bam(filename: String, fasta_seq: FastaSequence) -> String {// -> Has
         };
         ra.generate_alignment(ref_seq);
         read_align_map.insert(name.to_string(), ra);
-        for some_alignment in read_align_map.values() {
-            let x = some_alignment.get_aligned_index(30);
-            let y = some_alignment.get_aligned_index(60);
-            println!("{:?}", (x,y));
-            println!("{:?}", &some_alignment.seq[x as usize..y as usize]);
-            println!("{:?}", &some_alignment.whole_ref_alignment[x as usize..y as usize]);
-            println!("{:?}", &some_alignment.whole_read_alignment[x as usize..y as usize]);
-            std::process::exit(1);
-        }
     }
-    "hello".to_string()
+    read_align_map
 }
