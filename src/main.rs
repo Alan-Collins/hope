@@ -7,6 +7,7 @@
 
 
 use clap::Parser;
+use bam;
 
 mod homopolymer;
 mod io;
@@ -40,12 +41,56 @@ fn main() {
     
     let fasta_seq = io::read_fasta(args.assembly);
 
-    let reads = io::read_bam(args.bam, fasta_seq);
-
-    let mut results: Vec::<homopolymer::HomopolymerResult> = Vec::new();
     let mut outcontents = "homopolymer_length\thomopolymer_base\tdifference\tread_context\tassembly_context\thomo_start\tread_ID\n".to_string();
-    for homo in homos {
-        for ra in reads.values() {
+
+    let reader = bam::BamReader::from_path(args.bam, 0).unwrap();
+    for record in reader {
+        let record = record.unwrap();
+        // skip if map is secondary or supplementary
+        if record.flag().is_secondary() | record.flag().is_supplementary() {
+            continue
+        }
+
+        // extract read name
+        let name: &str = std::str::from_utf8(&record.name()).unwrap();
+        
+        // extract cigar string as vector of tuples
+        let mut cig: Vec<(String, u32)> = Vec::new();
+        for (l, c) in record.cigar().iter() {
+            cig.push((c.to_string(), l));
+        }
+
+        // extract basic details
+        let contig_id: i32 = record.ref_id();
+
+        // following line doesn't work directly for some reason. Need to split in two
+        // let seq: &str = std::str::from_utf8(&record.sequence().to_vec()).unwrap();
+
+        // This seems to be the same thing, but works. 
+        let temp = &record.sequence().to_vec();
+        let seq: &str = std::str::from_utf8(&temp).unwrap();
+
+        let Some(contig) = fasta_seq.seq_idxs.get(&contig_id) else { continue };
+        let Some(ref_seq) = fasta_seq.seq_map.get(&contig.to_string()) else { continue };
+        let start = record.start();
+        let end = record.calculate_end();
+        let flag = record.flag().0;
+
+        let mut ra = read_alignment::ReadAlignment { 
+            cig: cig,
+            contig: contig.to_string(),
+            contig_id: contig_id,
+            seq: seq.to_string(),
+            pos: start,
+            end: end,
+            name: name.to_string(),
+            flag: flag,
+            whole_read_alignment: "".to_string(),
+            whole_ref_alignment: "".to_string(),
+        };
+        ra.generate_alignment(ref_seq);
+
+        for homo in &homos {
             // if read doesn't map to homopolymer, skip
             if ra.contig != homo.contig{
                 continue
@@ -94,6 +139,7 @@ fn main() {
             outcontents = format!("{}{}", &outcontents, &line);
         }
     }
+
     let outfile = format!("{}{}", args.outprefix, "out.txt");
     std::fs::write(outfile, outcontents).expect("Unable to write file");
 }
