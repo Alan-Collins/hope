@@ -15,8 +15,8 @@ use crate::read_alignment::ReadAlignment;
 
 #[derive(Debug)]
 pub struct FastaSequence {
-    seq_idxs: HashMap<i32, String>,
-    seq_map: HashMap<String, String>
+    pub seq_idxs: HashMap<i32, String>,
+    pub seq_map: HashMap<String, String>
 }
 
 
