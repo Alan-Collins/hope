@@ -119,8 +119,8 @@ pub fn read_bam(filename: String, fasta_seq: FastaSequence) -> HashMap<String, R
         let temp = &record.sequence().to_vec();
         let seq: &str = std::str::from_utf8(&temp).unwrap();
 
-        let Some(contig) = fasta_seq.seq_idxs.get(&contig_id) else { continue };
-        let Some(ref_seq) = fasta_seq.seq_map.get(&contig.to_string()) else { continue };
+        let contig = fasta_seq.seq_idxs.get(&contig_id).unwrap();
+        let ref_seq = fasta_seq.seq_map.get(&contig.to_string()).unwrap();
         let start = record.start();
         let end = record.calculate_end();
         let flag = record.flag().0;
