@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-# /mnt/g/SynologyDrive/IHRC/work/ABiL/homopolymer
-# ./hope.py -a data/Sterne_pilon.fasta -b maptest/sterne0_subseq_A2B10.bam -f data/sterne_5n.txt -o test_out
-
 import sys
 import os
 import argparse
@@ -31,9 +28,6 @@ class HomoResult():
 		self.ra = ra
 		self.start = ra.get_aligned_index(homo.start)
 		self.stop = ra.get_aligned_index(homo.stop)+1
-		# print(ra.print_alignment(self.start-5, self.stop+5))
-		# print(ra.cigartuples[108:113])
-		# sys.exit()
 		self.read_alignment = ra.whole_read_alignment[self.start: self.stop]
 		self.ref_alignment = ra.whole_ref_seq[self.start: self.stop]
 		self.read_upstream = ra.whole_read_alignment[max(0, self.start-30): self.start]
@@ -215,7 +209,7 @@ class ReadAlignment():
 		read_idx = 0
 		ref_idx = self.pos
 
-		for n, (cig, ln) in enumerate(self.cigartuples):
+		for (cig, ln) in self.cigartuples:
 			if cig in [3, 4]:
 				continue
 			elif cig  == 1:
@@ -225,8 +219,14 @@ class ReadAlignment():
 				else:
 					read_idx += ln
 			elif cig == 2:
-				read_idx += ln
-				ref_idx += ln
+				if ref_idx + ln >= index:
+					# if index in this match portion add remining
+					# distance to read index
+					read_idx += index - ref_idx
+					break
+				else:
+					read_idx += ln
+					ref_idx += ln
 			elif cig == 0:
 				if ref_idx + ln >= index:
 					# if index in this match portion add remining
@@ -236,7 +236,6 @@ class ReadAlignment():
 				else:
 					read_idx += ln
 					ref_idx += ln
-		# print(n)
 		return read_idx
 
 
@@ -290,10 +289,6 @@ def cmdline_args():
 		default=1,
 		type=int,
 		help=""
-		)
-	p.add_argument(
-		"fastqs", nargs="*", 
-		help="reads to process"
 		)
 
 	return p.parse_args()
@@ -377,11 +372,8 @@ def process_homo(homo, reads):
 
 def read_bam(bam, contig, start, stop, assembly_dict):
 	read_dict = {}
-	# samfile = pysam.AlignmentFile(bam, "rb")
 	with pysam.AlignmentFile(bam, "rb") as samfile:
 		for read in samfile.fetch(contig, start, stop):
-			# if read.qname != "8362b57e-621b-4106-9abc-ff3ea2257af7":
-			# 	continue
 			if 256 & read.flag or 2048 & read.flag:
 				continue
 			read_dict[read.qname] = ReadAlignment(read, assembly_dict)
@@ -392,12 +384,9 @@ def read_bam(bam, contig, start, stop, assembly_dict):
 def assemble_homo_list(homo, bam, read_dict):
 	reads = []
 	with pysam.AlignmentFile(bam, "rb") as samfile:
-		# samfile = pysam.AlignmentFile(bam, "rb")
 		for read in samfile.fetch(homo.contig, homo.start, homo.stop):
 			if 256 & read.flag or 2048 & read.flag:
 				continue
-			# if read.qname != "8362b57e-621b-4106-9abc-ff3ea2257af7":
-			# 	continue
 			reads.append(read_dict[read.qname])
 
 	return (homo, reads)
