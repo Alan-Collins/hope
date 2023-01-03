@@ -31,6 +31,8 @@ pub struct HomopolymerResult<'a> {
     pub ra: &'a crate::read_alignment::ReadAlignment, 
     pub start: usize, 
     pub stop: usize, 
+    pub region_read_aln: String,
+    pub region_ref_aln: String,
     pub read_alignment: String, 
     pub ref_alignment: String, 
     pub read_upstream: String, 
@@ -42,11 +44,17 @@ pub struct HomopolymerResult<'a> {
 }
 
 impl HomopolymerResult<'_> {
-    pub fn new<'a>(homo: HomopolymerRecord, ra: &'a crate::read_alignment::ReadAlignment) -> HomopolymerResult<'a> {
+    pub fn new<'a>(homo: &'a HomopolymerRecord, ra: &'a crate::read_alignment::ReadAlignment, ref_seq: &'a String) -> HomopolymerResult<'a> {
         let start = ra.get_aligned_index(homo.start) as usize;
         let stop = ra.get_aligned_index(homo.stop) as usize;
-        let upstart = std::cmp::max(start, 30) - 30;
-        let downstop = std::cmp::min(stop, ra.whole_read_alignment.len()-30) + 30;
+        let up_idx = std::cmp::max(std::cmp::max(homo.start, 30) - 30, ra.pos as u32) as u32;
+        let down_idx = (std::cmp::min(homo.stop, ra.aligned_end as u32 - 30) + 30) as u32;
+        let upstart = ra.get_aligned_index(up_idx);
+        let downstop = ra.get_aligned_index(down_idx);
+        let (read_aln, ref_aln) = ra.extract_alignment(upstart, downstop, ref_seq);
+        let aln_homo_start = start - upstart as usize;
+        let aln_homo_stop = read_aln.len() - (downstop as usize - stop);
+        
         let mut hr = HomopolymerResult {
             base: homo.base.to_string(),
             homo_length: homo.length,
@@ -60,12 +68,14 @@ impl HomopolymerResult<'_> {
             ra: &ra,
             start: start,
             stop: stop,
-            read_alignment: ra.whole_read_alignment[start..stop].to_string(),
-            ref_alignment: ra.whole_ref_alignment[start..stop].to_string(),
-            read_upstream: ra.whole_read_alignment[upstart..start].to_string(),
-            read_downstream: ra.whole_read_alignment[stop..downstop].to_string(),
-            ref_upstream: ra.whole_ref_alignment[upstart..start].to_string(),
-            ref_downstream: ra.whole_ref_alignment[stop..downstop].to_string(),
+            region_read_aln: read_aln.to_string(),
+            region_ref_aln: ref_aln.to_string(),
+            read_alignment: read_aln[aln_homo_start..aln_homo_stop].to_string(),
+            ref_alignment: ref_aln[aln_homo_start..aln_homo_stop].to_string(),
+            read_upstream: read_aln[..aln_homo_start].to_string(),
+            read_downstream: read_aln[aln_homo_stop..].to_string(),
+            ref_upstream: ref_aln[..aln_homo_start].to_string(),
+            ref_downstream: ref_aln[aln_homo_stop..].to_string(),
             length: (stop-start) as u32,
             score: HomopolymerScore::Difference(0), 
         };
@@ -77,7 +87,7 @@ impl HomopolymerResult<'_> {
         let base = self.base.chars().nth(0).unwrap();
 
         // first check if we have flanking sequence to check
-        if self.start == 0 || self.stop == self.ra.whole_read_alignment.len() {
+        if self.start == 0 || self.stop == self.region_read_aln.len() {
             self.score = HomopolymerScore::Other("skip".to_string());
             return
         }
@@ -100,7 +110,7 @@ impl HomopolymerResult<'_> {
                 let mut s = self.read_upstream.chars().nth(self.read_upstream.len()-i).unwrap();
                 while s == '-' {
                     // homopolymer base in ref during deletion in read. uncertain what it means. return ?
-                    if self.ref_upstream.chars().nth(self.read_upstream.len()-i).unwrap() == base {
+                    if self.ref_upstream.chars().nth(self.read_upstream.len()-i).unwrap() == base || self.read_upstream.len() == 1 {
                         self.score = HomopolymerScore::Other("?".to_string());
                         return
                     }
@@ -121,7 +131,7 @@ impl HomopolymerResult<'_> {
                 let mut i = 0;
                 let mut s = self.read_downstream.chars().nth(i).unwrap();
                 while s == '-' {
-                    if self.ref_downstream.chars().nth(i).unwrap() == base {
+                    if self.ref_downstream.chars().nth(i).unwrap() == base || self.read_downstream.len() == 1 {
                         self.score = HomopolymerScore::Other("?".to_string());
                         return
                     }

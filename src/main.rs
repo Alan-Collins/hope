@@ -18,7 +18,7 @@ mod read_alignment;
 /// specified homopolymers in an assembly. Report errors in the sequencing of
 /// those homopolymers
 #[derive(Parser)]
-#[clap(version = "0.1.0", author = "Alan Collins <Alan.Collins@IHRC.com>")]
+#[clap(version = "0.2.0", author = "Alan Collins <Alan.Collins@IHRC.com>")]
 struct Opts {
     /// file with homopolymer locations and bases
     #[clap(short, long)]
@@ -32,16 +32,27 @@ struct Opts {
     /// the outprefix
     #[clap(short, long)]
     outprefix: String,
+    /// include sequence context in outfile?
+    #[clap(short, long)]
+    context: bool,
 }
 
 
 fn main() {
+    std::env::set_var("RUST_BACKTRACE", "1");
     let args = Opts::parse();
     let homos = io::read_homo_pol_file(args.input_homos);
     
     let fasta_seq = io::read_fasta(args.assembly);
 
-    let mut outcontents = "homopolymer_length\thomopolymer_base\tdifference\tread_context\tassembly_context\thomo_start\tread_ID\n".to_string();
+    let mut outcontents = String::new();
+    let mut line;
+    if args.context {
+        line = "homopolymer_length\thomopolymer_base\tdifference\tread_context\tassembly_context\thomo_start\tread_ID\n".to_string();
+    } else {
+        line = "homopolymer_length\thomopolymer_base\tdifference\thomo_start\tread_ID\n".to_string();
+    }
+    outcontents = format!("{}{}", &outcontents, &line);
 
     let reader = bam::BamReader::from_path(args.bam, 0).unwrap();
     for record in reader {
@@ -70,8 +81,8 @@ fn main() {
         let temp = &record.sequence().to_vec();
         let seq: &str = std::str::from_utf8(&temp).unwrap();
 
-        let Some(contig) = fasta_seq.seq_idxs.get(&contig_id) else { continue };
-        let Some(ref_seq) = fasta_seq.seq_map.get(&contig.to_string()) else { continue };
+        let contig = fasta_seq.seq_idxs.get(&contig_id).unwrap();
+        let ref_seq = fasta_seq.seq_map.get(&contig.to_string()).unwrap();
         let start = record.start();
         let end = record.calculate_end();
         let flag = record.flag().0;
@@ -86,8 +97,6 @@ fn main() {
             aligned_end: 0,
             name: name.to_string(),
             flag: flag,
-            // whole_read_alignment: "".to_string(),
-            // whole_ref_alignment: "".to_string(),
         };
         ra.aligned_end = ra.get_aligned_index(ra.end as u32) as i32;
         // ra.generate_alignment(ref_seq);
@@ -103,47 +112,21 @@ fn main() {
             if homo.stop > ra.end as u32 {
                 continue
             }
-            
-            let start = ra.get_aligned_index(homo.start) as usize;
-            let stop = ra.get_aligned_index(homo.stop) as usize;
-            let upstart = (std::cmp::max(start, 30) - 30) as u32;
-            let downstop = (std::cmp::min(stop, ra.aligned_end as usize-30) + 30) as u32;
-            let (x, y) = ra.extract_alignment(upstart, downstop, ref_seq);
-            println!("{:?}", x);
-            println!("{:?}", y);
 
-            std::process::exit(1);
-            // let mut hr = homopolymer::HomopolymerResult {
-            //     base: homo.base.to_string(),
-            //     homo_length: homo.length,
-            //     homo: homopolymer::HomopolymerRecord{
-            //         contig: homo.contig.clone(),
-            //         start: homo.start,
-            //         stop: homo.stop,
-            //         base: homo.base.clone(),
-            //         length: homo.length,
-            //     },
-            //     ra: &ra,
-            //     start: start,
-            //     stop: stop,
-            //     // read_alignment: ra.whole_read_alignment[start..stop].to_string(),
-            //     // ref_alignment: ra.whole_ref_alignment[start..stop].to_string(),
-            //     // read_upstream: ra.whole_read_alignment[upstart..start].to_string(),
-            //     // read_downstream: ra.whole_read_alignment[stop..downstop].to_string(),
-            //     // ref_upstream: ra.whole_ref_alignment[upstart..start].to_string(),
-            //     // ref_downstream: ra.whole_ref_alignment[stop..downstop].to_string(),
-            //     length: (stop-start) as u32,
-            //     score: homopolymer::HomopolymerScore::Difference(0), 
-            // };
-            // hr.score();
+            let mut hr = homopolymer::HomopolymerResult::new(&homo, &ra, &ref_seq);
 
-            // let score = match hr.score {
-            //     homopolymer::HomopolymerScore::Other(score) => score,
-            //     homopolymer::HomopolymerScore::Difference(score) => score.to_string(),
-            // };
-            // let line = format!("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n", hr.homo_length, hr.base, score, format!("{}{}{}", &hr.read_upstream[std::cmp::max(hr.read_upstream.len() as isize -5, 0) as usize..], hr.read_alignment, &hr.read_downstream[..std::cmp::min(hr.read_downstream.len() as usize,5)]), format!("{}{}{}", &hr.ref_upstream[std::cmp::max(hr.ref_upstream.len() as isize -5, 0) as usize..], hr.ref_alignment, &hr.ref_downstream[..std::cmp::min(hr.ref_downstream.len() as usize,5)]), hr.homo.start, hr.ra.name);
+            let score = match hr.score {
+                homopolymer::HomopolymerScore::Other(score) => score,
+                homopolymer::HomopolymerScore::Difference(score) => score.to_string(),
+            };
+
+            if args.context {
+                line = format!("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n", hr.homo_length, hr.base, score, &hr.region_read_aln, &hr.region_ref_aln, hr.homo.start, hr.ra.name);
+            } else {
+                line = format!("{0}\t{1}\t{2}\t{3}\t{4}\n", hr.homo_length, hr.base, score, hr.homo.start, hr.ra.name);
+            }
+            outcontents = format!("{}{}", &outcontents, &line);
             
-            // outcontents = format!("{}{}", &outcontents, &line);
         }
     }
 
