@@ -161,7 +161,8 @@ impl HomopolymerResult<'_> {
                     non_base += 1
                 }
             }
-            if non_base > self.read_alignment.len()/2 {
+            // if any inserted bases are not the homopolymer base return ?
+            if non_base > 0 {
                 self.score = HomopolymerScore::Other("?".to_string());
                 return
             } else {
@@ -181,7 +182,7 @@ impl HomopolymerResult<'_> {
             // If not flanked by gaps in read, simply truncated homopolymer
             if !self.read_upstream.ends_with('-') && !self.read_downstream.starts_with('-') {
                 // Check if majority of non-gap sequence not homopolymer base
-                let mut non_base = 0;
+                let mut non_base = 0; // shouldn't be any
                 let mut is_base = 0;
                 let mut gap = 0;
                 for b in self.read_alignment.chars() {
@@ -195,11 +196,11 @@ impl HomopolymerResult<'_> {
                         }
                     }
                 }
-                if non_base > self.read_alignment.len()/2 {
+                if non_base > 0 {
                     self.score = HomopolymerScore::Other("?".to_string());
                     return
                 } else {
-                    self.score = HomopolymerScore::Difference(-gap as i32 - non_base as i32);
+                    self.score = HomopolymerScore::Difference(-gap as i32);
                     return
                 }
             }
