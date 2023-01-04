@@ -45,15 +45,16 @@ pub struct HomopolymerResult<'a> {
 
 impl HomopolymerResult<'_> {
     pub fn new<'a>(homo: &'a HomopolymerRecord, ra: &'a crate::read_alignment::ReadAlignment, ref_seq: &'a String) -> HomopolymerResult<'a> {
-        let start = ra.get_aligned_index(homo.start) as usize;
-        let stop = ra.get_aligned_index(homo.stop) as usize;
+        let start = ra.get_aligned_index(homo.start);// as usize;
+        let stop = ra.get_aligned_index(homo.stop);// as usize;
         let up_idx = std::cmp::max(std::cmp::max(homo.start, 30) - 30, ra.pos as u32) as u32;
         let down_idx = (std::cmp::min(homo.stop, ra.aligned_end as u32 - 30) + 30) as u32;
         let upstart = ra.get_aligned_index(up_idx);
         let downstop = ra.get_aligned_index(down_idx);
-        let (read_aln, ref_aln) = ra.extract_alignment(upstart, downstop, ref_seq);
-        let aln_homo_start = start - upstart as usize;
-        let aln_homo_stop = read_aln.len() - (downstop as usize - stop);
+        let (reg_read_aln, reg_ref_aln) = ra.extract_alignment(upstart, downstop, ref_seq);
+        let (homo_read_aln, homo_ref_aln) = ra.extract_alignment(start, stop, ref_seq);
+        let (read_up, ref_up) = ra.extract_alignment(upstart, start, ref_seq);
+        let (read_down, ref_down) = ra.extract_alignment(stop, downstop, ref_seq);
         
         let mut hr = HomopolymerResult {
             base: homo.base.to_string(),
@@ -66,16 +67,16 @@ impl HomopolymerResult<'_> {
                 length: homo.length,
             },
             ra: &ra,
-            start: start,
-            stop: stop,
-            region_read_aln: read_aln.to_string(),
-            region_ref_aln: ref_aln.to_string(),
-            read_alignment: read_aln[aln_homo_start..aln_homo_stop].to_string(),
-            ref_alignment: ref_aln[aln_homo_start..aln_homo_stop].to_string(),
-            read_upstream: read_aln[..aln_homo_start].to_string(),
-            read_downstream: read_aln[aln_homo_stop..].to_string(),
-            ref_upstream: ref_aln[..aln_homo_start].to_string(),
-            ref_downstream: ref_aln[aln_homo_stop..].to_string(),
+            start: start as usize,
+            stop: stop as usize,
+            region_read_aln: reg_read_aln.to_string(),
+            region_ref_aln: reg_ref_aln.to_string(),
+            read_alignment: homo_read_aln.to_string(),
+            ref_alignment: homo_ref_aln.to_string(),
+            read_upstream: read_up.to_string(),
+            read_downstream: read_down.to_string(),
+            ref_upstream: ref_up.to_string(),
+            ref_downstream: ref_down.to_string(),
             length: (stop-start) as u32,
             score: HomopolymerScore::Difference(0), 
         };
