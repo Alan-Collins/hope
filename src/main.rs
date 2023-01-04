@@ -45,14 +45,12 @@ fn main() {
     
     let fasta_seq = io::read_fasta(args.assembly);
 
-    let mut outcontents = String::new();
-    let mut line;
+    let mut outlines: Vec<String> = Vec::new();
     if args.context {
-        line = "homopolymer_length\thomopolymer_base\tdifference\tread_context\tassembly_context\thomo_start\tread_ID\n".to_string();
+        outlines.push("homopolymer_length\thomopolymer_base\tdifference\tread_context\tassembly_context\thomo_start\tread_ID\n".to_string());
     } else {
-        line = "homopolymer_length\thomopolymer_base\tdifference\thomo_start\tread_ID\n".to_string();
+        outlines.push("homopolymer_length\thomopolymer_base\tdifference\thomo_start\tread_ID\n".to_string());
     }
-    outcontents = format!("{}{}", &outcontents, &line);
 
     let reader = bam::BamReader::from_path(args.bam, 0).unwrap();
     for record in reader {
@@ -121,15 +119,15 @@ fn main() {
             };
 
             if args.context {
-                line = format!("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n", hr.homo_length, hr.base, score, &hr.region_read_aln, &hr.region_ref_aln, hr.homo.start, hr.ra.name);
+                outlines.push(format!("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n", hr.homo_length, hr.base, score, &hr.region_read_aln, &hr.region_ref_aln, hr.homo.start, hr.ra.name));
             } else {
-                line = format!("{0}\t{1}\t{2}\t{3}\t{4}\n", hr.homo_length, hr.base, score, hr.homo.start, hr.ra.name);
+                outlines.push(format!("{0}\t{1}\t{2}\t{3}\t{4}\n", hr.homo_length, hr.base, score, hr.homo.start, hr.ra.name));
             }
-            outcontents = format!("{}{}", &outcontents, &line);
+            
             
         }
     }
-
+    let outcontents = outlines.join("");
     let outfile = format!("{}{}", args.outprefix, "out.txt");
     std::fs::write(outfile, outcontents).expect("Unable to write file");
 }
