@@ -18,7 +18,7 @@ mod read_alignment;
 /// specified homopolymers in an assembly. Report errors in the sequencing of
 /// those homopolymers
 #[derive(Parser)]
-#[clap(version = "0.2.1", author = "Alan Collins <Alan.Collins@IHRC.com>")]
+#[clap(version = "0.2.2", author = "Alan Collins <Alan.Collins@IHRC.com>")]
 struct Opts {
     /// file with homopolymer locations and bases
     #[clap(short, long)]
