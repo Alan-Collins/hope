@@ -115,11 +115,11 @@ impl HomopolymerResult<'_> {
                         return
                     }
                     i += 1;
-                    s = self.read_upstream.chars().nth(self.read_upstream.len()-i).unwrap();
-                    if i == self.read_upstream.len() {
+                    if i > self.read_upstream.len() {
                         self.score = HomopolymerScore::Other("?".to_string());
                         return
                     }
+                    s = self.read_upstream.chars().nth(self.read_upstream.len()-i).unwrap();
                 }
                 if self.read_upstream.chars().nth(self.read_upstream.len()-i).unwrap() == base {
                     // indel flanked by homopolymer base. Call it homopolymer-associated error
@@ -136,11 +136,11 @@ impl HomopolymerResult<'_> {
                         return
                     }
                     i += 1;
-                    s = self.read_downstream.chars().nth(i).unwrap();
                     if i == self.read_downstream.len() {
                         self.score = HomopolymerScore::Other("?".to_string());
                         return
                     }
+                    s = self.read_downstream.chars().nth(i).unwrap();
                 }
                 if self.read_downstream.chars().nth(i).unwrap() == base {
                     // indel flanked by homopolymer base. Call it homopolymer-associated error
@@ -219,6 +219,10 @@ impl HomopolymerResult<'_> {
                         return
                     }
                     i += 1;
+                    if i > self.ref_upstream.len() {
+                        self.score = HomopolymerScore::Other("?".to_string());
+                        return
+                    }
                     s = self.ref_upstream.chars().nth(self.ref_upstream.len()-i).unwrap();
                     if i == self.ref_upstream.len()-1 {
                         self.score = HomopolymerScore::Other("?".to_string());
@@ -240,6 +244,10 @@ impl HomopolymerResult<'_> {
                         return
                     }
                     i += 1;
+                    if i == self.ref_downstream.len() {
+                        self.score = HomopolymerScore::Other("?".to_string());
+                        return
+                    }
                     s = self.ref_downstream.chars().nth(i).unwrap();
                     if i == self.ref_downstream.len()-1 {
                         self.score = HomopolymerScore::Other("?".to_string());
