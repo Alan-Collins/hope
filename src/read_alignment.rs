@@ -1,5 +1,3 @@
-use std::cmp;
-
 
 #[derive(Debug)]
 pub struct ReadAlignment {
@@ -98,7 +96,7 @@ impl ReadAlignment {
                 if ref_idx + l >= pos {
                     if on_start {
                         // Add first bit of sequence
-                        let mut intermediate_index = pos - ref_idx;
+                        let intermediate_index = pos - ref_idx;
                         read_seq.push_str(&self.seq[(read_idx + intermediate_index).try_into().unwrap()..(read_idx + l).try_into().unwrap()]);
                         aln_ref_seq.push_str(&ref_seq[pos.try_into().unwrap()..(ref_idx + l).try_into().unwrap()]);
                         // now looking for end
