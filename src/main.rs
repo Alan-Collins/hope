@@ -1,11 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-#![allow(unused_mut)]
-#![allow(unreachable_code)]
-
-
-
 use clap::Parser;
 use bam;
 
@@ -18,7 +10,7 @@ mod read_alignment;
 /// specified homopolymers in an assembly. Report errors in the sequencing of
 /// those homopolymers
 #[derive(Parser)]
-#[clap(version = "0.2.2", author = "Alan Collins <Alan.Collins@IHRC.com>")]
+#[clap(version = "0.2.3", author = "Alan Collins <Alan.Collins@IHRC.com>")]
 struct Opts {
     /// file with homopolymer locations and bases
     #[clap(short, long)]
@@ -39,7 +31,6 @@ struct Opts {
 
 
 fn main() {
-    std::env::set_var("RUST_BACKTRACE", "1");
     let args = Opts::parse();
     let homos = io::read_homo_pol_file(args.input_homos);
     
@@ -55,8 +46,8 @@ fn main() {
     let reader = bam::BamReader::from_path(args.bam, 0).unwrap();
     for record in reader {
         let record = record.unwrap();
-        // skip if map is secondary or supplementary
-        if record.flag().is_secondary() | record.flag().is_supplementary() {
+        // skip if unmapped or if map is secondary or supplementary
+        if !record.flag().is_mapped() | record.flag().is_secondary() | record.flag().is_supplementary() {
             continue
         }
 
@@ -111,7 +102,7 @@ fn main() {
                 continue
             }
 
-            let mut hr = homopolymer::HomopolymerResult::new(&homo, &ra, &ref_seq);
+            let hr = homopolymer::HomopolymerResult::new(&homo, &ra, &ref_seq);
 
             let score = match hr.score {
                 homopolymer::HomopolymerScore::Other(score) => score,
