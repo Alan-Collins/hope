@@ -77,7 +77,7 @@ impl HomopolymerResult<'_> {
             read_downstream: read_down.to_string(),
             ref_upstream: ref_up.to_string(),
             ref_downstream: ref_down.to_string(),
-            length: (stop-start) as u32,
+            length: homo_read_aln.len() as u32,
             score: HomopolymerScore::Difference(0), 
         };
         hr.score();
@@ -199,8 +199,12 @@ impl HomopolymerResult<'_> {
                 if non_base > 0 {
                     self.score = HomopolymerScore::Other("?".to_string());
                     return
+                } else if gap + is_base > self.homo.length {
+                    // deletion beyond just the homopolymer. Return ?
+                    self.score = HomopolymerScore::Other("?".to_string());
+                    return
                 } else {
-                    self.score = HomopolymerScore::Difference(-gap as i32);
+                    self.score = HomopolymerScore::Difference(gap as i32 *-1);
                     return
                 }
             }
